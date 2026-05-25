@@ -1031,10 +1031,11 @@ function switchTab(tab) {
 //  전체 렌더링
 // ══════════════════════════════════════════════
 function renderAll() {
-  if (document.getElementById('unbilled-list'))     renderUnbilled();
-  if (document.getElementById('records-list'))      renderRecords();
+  if (document.getElementById('unbilled-list'))       renderUnbilled();
+  if (document.getElementById('records-list'))        renderRecords();
   if (document.getElementById('billing-tab-content')) renderBillingTab();
-  if (document.getElementById('pending-list'))      renderPending();
+  if (document.getElementById('pending-list'))        renderPending();
+  if (document.getElementById('search-results'))      renderSearch();
 }
 
 // ── 미청구내역 탭 ──
