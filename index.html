@@ -1020,10 +1020,10 @@ function switchTab(tab) {
 //  전체 렌더링
 // ══════════════════════════════════════════════
 function renderAll() {
-  renderUnbilled();
-  renderRecords();
-  renderBillingTab();
-  renderPending();
+  if (document.getElementById('unbilled-list'))     renderUnbilled();
+  if (document.getElementById('records-list'))      renderRecords();
+  if (document.getElementById('billing-tab-content')) renderBillingTab();
+  if (document.getElementById('pending-list'))      renderPending();
 }
 
 // ── 미청구내역 탭 ──
@@ -1059,57 +1059,7 @@ function renderUnbilled() {
 }
 
 // ── 대시보드 ──
-function renderDashboard() {
-  // 대시보드 페이지가 없으면 스킵
-  if (!document.getElementById('summary-grid')) return;
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-
-  const monthRecords = appData.records.filter(r => {
-    const d = new Date(r.date);
-    return d.getFullYear() === year && d.getMonth() + 1 === month;
-  });
-
-  const totalCard = monthRecords.reduce((s, r) => s + (r.cardAmount || 0), 0);
-  const totalCash = monthRecords.reduce((s, r) => s + (r.cashAmount || 0), 0);
-  const total = totalCard + totalCash;
-
-  const unpaidBillings = appData.billings.filter(b => !b.isPaid);
-  const unpaidAmount = unpaidBillings.reduce((s, b) => s + (b.amount || 0), 0);
-
-  document.getElementById('summary-grid').innerHTML = `
-    <div class="summary-item highlight">
-      <div class="label">이번 달 총 지출</div>
-      <div class="value">${formatMoney(total)}</div>
-    </div>
-    <div class="summary-item">
-      <div class="label">카드 결제</div>
-      <div class="value">${formatMoney(totalCard)}</div>
-    </div>
-    <div class="summary-item">
-      <div class="label">이체/현금</div>
-      <div class="value">${formatMoney(totalCash)}</div>
-    </div>
-    <div class="summary-item ${unpaidAmount > 0 ? 'warning' : ''}">
-      <div class="label">미입금 청구액</div>
-      <div class="value">${formatMoney(unpaidAmount)}</div>
-    </div>
-  `;
-
-  // 최근 10건
-  const recent = [...appData.records]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 10);
-
-  if (recent.length === 0) {
-    document.getElementById('recent-records').innerHTML =
-      `<div class="empty-state"><div class="icon">📋</div><p>아직 지출 내역이 없습니다</p></div>`;
-    return;
-  }
-
-  document.getElementById('recent-records').innerHTML =
-    recent.map(r => recordItemHTML(r)).join('');
-}
+function renderDashboard() { /* 대시보드 탭 없음 - 사용 안 함 */ }
 
 // ── 내역 탭 ──
 function renderRecords() {
@@ -1690,7 +1640,7 @@ async function saveBatchRecords() {
   document.getElementById('batch-preview').innerHTML = '';
   document.getElementById('batch-input').value = '';
   showToast(`${toSave.length}건이 저장되었습니다`);
-  renderDashboard();
+  renderAll();
 }
 
 function clearBatch() {
