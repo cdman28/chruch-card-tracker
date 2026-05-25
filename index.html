@@ -1330,19 +1330,17 @@ function renderPending() {
       </div>`).join('') || `<div style="color:var(--gray-400); font-size:13px;">항목 정보 없음</div>`;
 
     return `
-      <div class="billing-item">
+      <div class="billing-item" style="max-width:50%;">
         <div style="margin-bottom:8px;">
           <span class="billing-title">📅 청구일: ${b.date}</span>
         </div>
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-          <div>
-            <span style="font-size:12px; color:var(--gray-500); margin-right:6px;">총금액</span>
-            <span class="billing-amount">${formatMoney(b.amount)}</span><span style="font-size:14px; font-weight:500; color:var(--gray-500);">원</span>
-          </div>
+        <div style="display:flex; align-items:center; gap:4px; margin-bottom:8px;">
+          <span style="font-size:12px; color:var(--gray-500);">총금액</span>
+          <span class="billing-amount">${formatMoney(b.amount)}</span><span style="font-size:14px; font-weight:500; color:var(--gray-500);">원</span>
           <span class="billing-status status-unpaid">미입금</span>
         </div>
         ${summaryHtml}
-        <div style="margin-top:8px; max-width:50%;">${itemRows}</div>
+        <div style="margin-top:8px;">${itemRows}</div>
         <div class="billing-actions">
           <button class="btn btn-success btn-sm" onclick="markPaid('${b.id}')">✅ 입금완료</button>
         </div>
