@@ -55,6 +55,7 @@
       box-shadow: var(--shadow-md);
     }
     .app-header h1 { font-size: 17px; font-weight: 700; }
+    .header-version { font-size: 10px; opacity: 0.7; display: block; margin-top: 1px; }
     .header-actions { display: flex; gap: 8px; }
     .btn-icon {
       background: rgba(255,255,255,0.2);
@@ -686,7 +687,10 @@
 <!-- 메인 앱 -->
 <div id="app" style="display:none;">
   <header class="app-header">
-    <h1>✝️ 교회 카드 지출</h1>
+    <div>
+      <h1>✝️ 교회 카드 지출</h1>
+      <span class="header-version">수정: 2026.05.25</span>
+    </div>
     <div class="header-actions">
       <button class="btn-icon" onclick="exportExcel()" title="엑셀 내보내기">📥 내보내기</button>
       <button class="btn-icon" onclick="logout()" title="로그아웃">🚪</button>
@@ -896,6 +900,7 @@ async function init() {
         if (!appData.billings) appData.billings = [];
         appData.records.forEach(r => { if (r.billed === undefined) r.billed = false; });
       }
+      
       // data가 null이어도 Gist를 덮어쓰지 않음 — 빈 상태로 앱 시작만 함
       showApp();
     } catch (err) {
@@ -1669,65 +1674,43 @@ function exportExcel() {
 
   const wb = XLSX.utils.book_new();
 
-  // 월별로 시트 생성
-  const byMonth = {};
-  appData.records.forEach(r => {
-    const d = new Date(r.date);
-    const key = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2,'0')}`;
-    if (!byMonth[key]) byMonth[key] = [];
-    byMonth[key].push(r);
+  // 전체 데이터를 날짜 역순(최신이 위)으로 정렬
+  const records = [...appData.records].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const totalCard = records.reduce((s, r) => s + (r.cardAmount || 0), 0);
+  const totalCash = records.reduce((s, r) => s + (r.cashAmount || 0), 0);
+  const total = totalCard + totalCash;
+
+  // 헤더 행
+  const header = ['날짜', '항목', '카드', '이체/현금', '상호', '사용카드', '청구', '입금', total, '', '', 'no.', '', ''];
+
+  const rows = [header];
+  records.forEach((r, i) => {
+    rows.push([
+      r.date,
+      r.item,
+      r.cardAmount || '',
+      r.cashAmount || '',
+      r.merchant || '',
+      r.card || '',
+      '', '',
+      '', '', '',
+      i + 1,
+      '', '',
+    ]);
   });
 
-  Object.keys(byMonth).sort().forEach(monthKey => {
-    const records = byMonth[monthKey].sort((a, b) => new Date(a.date) - new Date(b.date));
-    const totalCard = records.reduce((s, r) => s + (r.cardAmount || 0), 0);
-    const totalCash = records.reduce((s, r) => s + (r.cashAmount || 0), 0);
-    const total = totalCard + totalCash;
+  const ws = XLSX.utils.aoa_to_sheet(rows);
 
-    // 헤더 행 (기존 엑셀 형식 유지)
-    const header = ['날짜', '항목', '카드', '이체/현금', '상호', '사용카드', '청구', '입금', total, '', '', 'no.', '', ''];
+  // 열 너비 설정
+  ws['!cols'] = [
+    { wch: 12 }, { wch: 25 }, { wch: 10 }, { wch: 12 },
+    { wch: 15 }, { wch: 14 }, { wch: 10 }, { wch: 8 },
+    { wch: 10 }, { wch: 6 }, { wch: 25 }, { wch: 5 },
+    { wch: 25 }, { wch: 6 },
+  ];
 
-    const rows = [header];
-    records.forEach((r, i) => {
-      rows.push([
-        r.date,
-        r.item,
-        r.cardAmount || '',
-        r.cashAmount || '',
-        r.merchant || '',
-        r.card || '',
-        '', '',
-        '', '', '',
-        i + 1,
-        '', '',
-      ]);
-    });
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-
-    // 열 너비 설정
-    ws['!cols'] = [
-      { wch: 12 }, { wch: 25 }, { wch: 10 }, { wch: 12 },
-      { wch: 15 }, { wch: 14 }, { wch: 10 }, { wch: 8 },
-      { wch: 10 }, { wch: 6 }, { wch: 25 }, { wch: 5 },
-      { wch: 25 }, { wch: 6 },
-    ];
-
-    const [year, month] = monthKey.split('.');
-    const sheetName = `${year.slice(2)}.${parseInt(month)}.23일`;
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  });
-
-  // 전체 요약 시트
-  const summaryRows = [['날짜', '항목', '카드금액', '이체/현금', '상호', '사용카드', '메모']];
-  [...appData.records]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .forEach(r => {
-      summaryRows.push([r.date, r.item, r.cardAmount || '', r.cashAmount || '', r.merchant || '', r.card || '', r.memo || '']);
-    });
-  const summaryWs = XLSX.utils.aoa_to_sheet(summaryRows);
-  summaryWs['!cols'] = [{ wch: 12 }, { wch: 25 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 14 }, { wch: 20 }];
-  XLSX.utils.book_append_sheet(wb, summaryWs, '전체내역');
+  XLSX.utils.book_append_sheet(wb, ws, '전체내역');
 
   const now = new Date();
   const filename = `교회카드지출_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.xlsx`;
@@ -1853,7 +1836,6 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 // ══════════════════════════════════════════════
 async function migrateLastWeekBillings() {
   if (appData._lastWeekMigrated) return; // 이미 실행됨
-  if (!appData.records || appData.records.length === 0) return; // 데이터 없으면 실행 안 함
 
   const targets = [
     { date: '2026-05-22', item: '조의금(미화원 박종필)', cashAmount: 100000 },
@@ -1913,7 +1895,6 @@ async function migrateLastWeekBillings() {
 // ── 과거 내역 일괄 청구/입금 완료 마이그레이션 ──
 async function migrateAllHistoricalPaid() {
   if (appData._allHistoricalMigrated) return;
-  if (!appData.records || appData.records.length === 0) return; // 데이터 없으면 실행 안 함
 
   const unbilled = appData.records.filter(r => !r.billed);
 
