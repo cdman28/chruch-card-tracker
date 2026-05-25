@@ -334,6 +334,35 @@
       font-family: monospace;
     }
 
+    /* ─── 미청구내역 / 청구 탭 ─── */
+    .section-label {
+      font-size: 11px; font-weight: 700; color: var(--gray-500);
+      letter-spacing: 0.5px; padding: 0 2px; margin: 12px 0 6px;
+    }
+    .billing-select-row {
+      display: grid;
+      grid-template-columns: 32px 1fr auto;
+      align-items: center;
+      gap: 0 10px;
+      padding: 10px 12px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: box-shadow 0.15s;
+    }
+    .billing-select-row:hover { box-shadow: var(--shadow-md); }
+    .billing-select-row.selected { background: #eff6ff; border: 1.5px solid #bfdbfe; }
+    .billing-select-row input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary); }
+    .billing-select-info { min-width: 0; }
+    .billing-select-item { font-size: 14px; font-weight: 600; color: var(--gray-800); margin-right: 6px; }
+    .billing-select-date { font-size: 11px; color: var(--gray-400); }
+    .billing-select-amount { font-weight: 700; color: var(--primary-dark); font-size: 14px; white-space: nowrap; }
+    .billing-preview-table { width: 100%; border-collapse: collapse; }
+    .billing-preview-table td { padding: 8px 6px; border-bottom: 1px solid var(--gray-100); font-size: 13px; }
+    .billing-preview-table tfoot td { border-top: 2px solid var(--gray-200); border-bottom: none; font-weight: 700; }
+
     /* ─── 필터 바 ─── */
     .filter-bar {
       display: flex;
@@ -663,20 +692,19 @@
   </header>
 
   <nav class="nav-tabs">
-    <div class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 요약</div>
-    <div class="nav-tab" data-tab="records" onclick="switchTab('records')">📋 내역</div>
-    <div class="nav-tab" data-tab="billing" onclick="switchTab('billing')">🧾 청구</div>
-    <div class="nav-tab" data-tab="search" onclick="switchTab('search')">🔍 검색</div>
+    <div class="nav-tab active" data-tab="unbilled" onclick="switchTab('unbilled')">📋 미청구내역</div>
     <div class="nav-tab" data-tab="batch" onclick="switchTab('batch')">📦 일괄입력</div>
+    <div class="nav-tab" data-tab="billing" onclick="switchTab('billing')">🧾 청구</div>
+    <div class="nav-tab" data-tab="records" onclick="switchTab('records')">📂 전체내역</div>
+    <div class="nav-tab" data-tab="search" onclick="switchTab('search')">🔍 검색</div>
   </nav>
 
   <div class="content">
 
-    <!-- 대시보드 탭 -->
-    <div id="page-dashboard" class="page active">
-      <div id="summary-grid" class="summary-grid"></div>
-      <div class="card-title">최근 지출 내역</div>
-      <div id="recent-records"></div>
+    <!-- 미청구내역 탭 -->
+    <div id="page-unbilled" class="page active">
+      <div id="unbilled-summary"></div>
+      <div id="unbilled-list"></div>
     </div>
 
     <!-- 내역 탭 -->
@@ -699,10 +727,7 @@
 
     <!-- 청구 탭 -->
     <div id="page-billing" class="page">
-      <div style="margin-bottom:12px;">
-        <button class="btn btn-primary" onclick="openBillingModal()">+ 새 청구서 만들기</button>
-      </div>
-      <div id="billing-list"></div>
+      <div id="billing-tab-content"></div>
     </div>
 
     <!-- 검색 탭 -->
@@ -822,57 +847,6 @@
   </div>
 </div>
 
-<!-- 청구서 모달 -->
-<div class="modal-overlay" id="modal-billing">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title">새 청구서 만들기</span>
-      <button class="modal-close" onclick="closeModal('modal-billing')">✕</button>
-    </div>
-    <form id="billing-form" onsubmit="saveBilling(event)">
-      <div class="form-group">
-        <label class="form-label">청구서 제목</label>
-        <input type="text" class="form-control" id="bil-title" placeholder="예: 6월 1주차" required />
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">시작일</label>
-          <input type="date" class="form-control" id="bil-start" required onchange="calcBillingAmount()" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">종료일</label>
-          <input type="date" class="form-control" id="bil-end" required onchange="calcBillingAmount()" />
-        </div>
-      </div>
-
-      <div class="card" style="margin-bottom:14px; background:var(--primary-light);">
-        <div class="card-title" style="color:var(--primary-dark);">해당 기간 지출 내역</div>
-        <div id="billing-preview"></div>
-        <div style="font-size:16px; font-weight:700; color:var(--primary-dark); margin-top:8px;">
-          합계: <span id="billing-preview-total">0</span>원
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">메모</label>
-        <input type="text" class="form-control" id="bil-note" placeholder="선택 입력" />
-      </div>
-      <button type="submit" class="btn btn-primary btn-full">청구서 생성</button>
-    </form>
-  </div>
-</div>
-
-<!-- 청구서 상세 모달 -->
-<div class="modal-overlay" id="modal-billing-detail">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title" id="bil-detail-title">청구서 상세</span>
-      <button class="modal-close" onclick="closeModal('modal-billing-detail')">✕</button>
-    </div>
-    <div id="bil-detail-content"></div>
-  </div>
-</div>
-
 <!-- 토스트 -->
 <div id="toast"></div>
 
@@ -888,7 +862,7 @@
 const db = new GistDB({ appKey: 'church_card', filename: 'church-data.json' });
 
 let appData = { records: [], billings: [], lastUpdated: null };
-let currentTab = 'dashboard';
+let currentTab = 'unbilled';
 
 // 자주 쓰는 항목 (빠른 입력용)
 const FAVORITE_ITEMS = [
@@ -912,6 +886,7 @@ async function init() {
         appData = data;
         if (!appData.records)  appData.records  = [];
         if (!appData.billings) appData.billings = [];
+        appData.records.forEach(r => { if (r.billed === undefined) r.billed = false; });
       } else {
         await db.save(appData);
       }
@@ -1146,39 +1121,144 @@ function recordItemHTML(r) {
 }
 
 // ── 청구 탭 ──
-function renderBillings() {
-  const list = [...appData.billings].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+let billingState = { step: 'select', selectedIds: new Set(), groups: [] };
 
-  if (list.length === 0) {
-    document.getElementById('billing-list').innerHTML =
-      `<div class="empty-state"><div class="icon">🧾</div><p>청구서가 없습니다<br>+ 새 청구서 만들기를 눌러 생성하세요</p></div>`;
+function renderBillingTab() {
+  if (billingState.step === 'select') renderBillingSelect();
+  else renderBillingPreview();
+}
+
+function renderBillingSelect() {
+  const unbilled = appData.records
+    .filter(r => !r.billed)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  if (unbilled.length === 0) {
+    document.getElementById('billing-tab-content').innerHTML =
+      `<div class="empty-state"><div class="icon">✅</div><p>미청구 내역이 없습니다</p></div>`;
     return;
   }
 
-  const html = list.map(b => `
-    <div class="billing-item">
-      <div class="billing-header">
-        <div class="billing-title">${escHtml(b.title)}</div>
-        <span class="billing-status ${b.isPaid ? 'status-paid' : 'status-unpaid'}">
-          ${b.isPaid ? '✅ 입금완료' : '⏳ 미입금'}
-        </span>
-      </div>
-      <div class="billing-meta">
-        📅 ${formatDate(b.startDate)} ~ ${formatDate(b.endDate)}
-        ${b.note ? ` · ${escHtml(b.note)}` : ''}
-      </div>
-      <div class="billing-amount">${formatMoney(b.amount)}원</div>
-      <div class="billing-actions">
-        <button class="btn btn-outline btn-sm" onclick="openBillingDetail('${b.id}')">내역 보기</button>
-        ${!b.isPaid ? `<button class="btn btn-success btn-sm" onclick="markPaid('${b.id}')">입금 확인</button>` : ''}
-        <button class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="deleteBilling('${b.id}')">삭제</button>
-      </div>
-    </div>
-  `).join('');
+  const sel = billingState.selectedIds;
+  const rows = unbilled.map(r => {
+    const amt = (r.cardAmount || 0) + (r.cashAmount || 0);
+    const checked = sel.has(r.id);
+    return `
+      <div class="billing-select-row ${checked ? 'selected' : ''}" onclick="toggleBillingRow('${r.id}', this)">
+        <input type="checkbox" class="billing-chk" data-id="${r.id}" ${checked ? 'checked' : ''}
+          onclick="event.stopPropagation(); toggleBillingRow('${r.id}', this.closest('.billing-select-row'))">
+        <div class="billing-select-info">
+          <span class="billing-select-item">${escHtml(r.item)}</span>
+          ${r.merchant ? `<span class="chip chip-gray" style="font-size:11px;">${escHtml(r.merchant)}</span>` : ''}
+          <span class="billing-select-date">${r.date}</span>
+        </div>
+        <div class="billing-select-amount">${formatMoney(amt)}</div>
+      </div>`;
+  }).join('');
 
-  document.getElementById('billing-list').innerHTML = html;
+  document.getElementById('billing-tab-content').innerHTML = `
+    <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center;">
+      <button class="btn btn-outline btn-sm" onclick="toggleAllBillingRows()">전체 선택/해제</button>
+      <span id="billing-sel-count" style="font-size:13px; color:var(--gray-500);">${sel.size}건 선택</span>
+      <button class="btn btn-primary" style="margin-left:auto;" onclick="buildBillingPreview()">청구서 만들기 →</button>
+    </div>
+    <div id="billing-select-list">${rows}</div>
+  `;
 }
 
+function toggleBillingRow(id, rowEl) {
+  const sel = billingState.selectedIds;
+  const chk = rowEl.querySelector('.billing-chk');
+  if (sel.has(id)) {
+    sel.delete(id); chk.checked = false; rowEl.classList.remove('selected');
+  } else {
+    sel.add(id); chk.checked = true; rowEl.classList.add('selected');
+  }
+  const el = document.getElementById('billing-sel-count');
+  if (el) el.textContent = `${sel.size}건 선택`;
+}
+
+function toggleAllBillingRows() {
+  const unbilled = appData.records.filter(r => !r.billed);
+  const sel = billingState.selectedIds;
+  if (unbilled.every(r => sel.has(r.id))) sel.clear();
+  else unbilled.forEach(r => sel.add(r.id));
+  renderBillingSelect();
+}
+
+function buildBillingPreview() {
+  const sel = billingState.selectedIds;
+  if (sel.size === 0) { showToast('선택된 항목이 없습니다.'); return; }
+
+  const groupMap = {};
+  appData.records.filter(r => sel.has(r.id)).forEach(r => {
+    const key = r.item.trim();
+    if (!groupMap[key]) groupMap[key] = { item: key, amount: 0, count: 0, ids: [] };
+    groupMap[key].amount += (r.cardAmount || 0) + (r.cashAmount || 0);
+    groupMap[key].count++;
+    groupMap[key].ids.push(r.id);
+  });
+  billingState.groups = Object.values(groupMap);
+  billingState.step = 'preview';
+  renderBillingPreview();
+}
+
+function renderBillingPreview() {
+  const groups = billingState.groups;
+  const total  = groups.reduce((s, g) => s + g.amount, 0);
+  const rows   = groups.map((g, i) => `
+    <tr>
+      <td><input type="text" value="${escHtml(g.item)}" onchange="billingState.groups[${i}].item=this.value"
+        style="width:100%; border:1px solid var(--gray-300); border-radius:4px; padding:5px 8px; font-size:13px;"></td>
+      <td style="text-align:right; font-weight:700; color:var(--primary-dark); padding:0 12px; white-space:nowrap;">${formatMoney(g.amount)}</td>
+      <td style="font-size:12px; color:var(--gray-400); white-space:nowrap;">${g.count}건</td>
+    </tr>`).join('');
+
+  document.getElementById('billing-tab-content').innerHTML = `
+    <button class="btn btn-outline btn-sm" onclick="billingState.step='select'; renderBillingTab()">← 다시 선택</button>
+    <div class="card" style="margin:12px 0;">
+      <div class="card-title">📋 청구서 항목
+        <span style="font-size:11px; color:var(--gray-400); font-weight:400; margin-left:6px;">항목명 직접 수정 가능</span>
+      </div>
+      <table class="billing-preview-table">
+        <tbody>${rows}</tbody>
+        <tfoot><tr>
+          <td style="color:var(--primary-dark);">합계</td>
+          <td style="text-align:right; color:var(--primary-dark); padding:0 12px;">${formatMoney(total)}</td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-outline flex-1" onclick="copyBillingText()">📋 엑셀 복사</button>
+      <button class="btn btn-success flex-1" onclick="completeBilling()">✅ 청구 완료 처리</button>
+    </div>
+    <p style="font-size:12px; color:var(--gray-400); margin-top:8px; text-align:center;">복사 후 청구서 엑셀에 붙여넷기 하세요 (항목명 | 금액 단일 열 형식)</p>
+  `;
+}
+
+function copyBillingText() {
+  const text = billingState.groups.map(g => `${g.item}\t${g.amount}`).join('\n');
+  navigator.clipboard.writeText(text)
+    .then(() => showToast('📋 복사 완료! 엑셀에 붙여넷기 하세요.'))
+    .catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      showToast('📋 복사 완료!');
+    });
+}
+
+async function completeBilling() {
+  const sel = billingState.selectedIds;
+  if (!confirm(`${sel.size}건을 청구 완료 처리할까요?`)) return;
+  appData.records.forEach(r => { if (sel.has(r.id)) r.billed = true; });
+  await persistData();
+  billingState = { step: 'select', selectedIds: new Set(), groups: [] };
+  showToast('✅ 청구 완료 처리되었습니다.');
+  renderAll();
+  switchTab('unbilled');
+}
 // ── 검색 ──
 function renderSearch() {
   const query  = document.getElementById('search-query').value.trim().toLowerCase();
@@ -1306,156 +1386,6 @@ async function deleteRecord() {
   closeModal('modal-record');
   renderAll();
   showToast('삭제되었습니다');
-}
-
-// ══════════════════════════════════════════════
-//  청구서 관리
-// ══════════════════════════════════════════════
-function openBillingModal() {
-  document.getElementById('billing-form').reset();
-  document.getElementById('billing-preview').innerHTML = '';
-  document.getElementById('billing-preview-total').textContent = '0';
-
-  // 제목 자동 제안
-  const now = new Date();
-  const weekNum = getWeekOfMonth(now);
-  document.getElementById('bil-title').value = `${now.getMonth() + 1}월 ${weekNum}주차`;
-
-  openModal('modal-billing');
-}
-
-function calcBillingAmount() {
-  const start = document.getElementById('bil-start').value;
-  const end   = document.getElementById('bil-end').value;
-  if (!start || !end) return;
-
-  const filtered = appData.records.filter(r => r.date >= start && r.date <= end);
-  const total = filtered.reduce((s, r) => s + (r.cardAmount || 0) + (r.cashAmount || 0), 0);
-
-  document.getElementById('billing-preview-total').textContent = total.toLocaleString();
-
-  if (filtered.length === 0) {
-    document.getElementById('billing-preview').innerHTML =
-      `<p style="font-size:13px; color:var(--gray-500);">해당 기간에 지출 내역이 없습니다.</p>`;
-    return;
-  }
-
-  // 카드별 소계
-  const byCard = {};
-  filtered.forEach(r => {
-    const k = r.card || '기타';
-    byCard[k] = (byCard[k] || 0) + (r.cardAmount || 0) + (r.cashAmount || 0);
-  });
-
-  const cardSummary = Object.entries(byCard)
-    .map(([k, v]) => `<span class="chip chip-blue">${k}: ${v.toLocaleString()}원</span>`)
-    .join(' ');
-
-  document.getElementById('billing-preview').innerHTML = `
-    <p style="font-size:13px; color:var(--gray-600); margin-bottom:6px;">${filtered.length}건</p>
-    <div>${cardSummary}</div>
-  `;
-}
-
-async function saveBilling(e) {
-  e.preventDefault();
-  const title = document.getElementById('bil-title').value.trim();
-  const start = document.getElementById('bil-start').value;
-  const end   = document.getElementById('bil-end').value;
-  const note  = document.getElementById('bil-note').value.trim();
-
-  if (!title || !start || !end) { showToast('필수 항목을 입력해주세요.'); return; }
-  if (start > end) { showToast('시작일이 종료일보다 늦을 수 없습니다.'); return; }
-
-  const filtered = appData.records.filter(r => r.date >= start && r.date <= end);
-  const amount   = filtered.reduce((s, r) => s + (r.cardAmount || 0) + (r.cashAmount || 0), 0);
-
-  appData.billings.push({
-    id: genId(),
-    title, startDate: start, endDate: end, amount, note,
-    isPaid: false, paidAt: null,
-    createdAt: new Date().toISOString(),
-  });
-
-  await persistData();
-  closeModal('modal-billing');
-  renderBillings();
-  showToast('청구서가 생성되었습니다');
-}
-
-async function markPaid(id) {
-  const bil = appData.billings.find(b => b.id === id);
-  if (!bil) return;
-  if (!confirm(`${bil.title} (${formatMoney(bil.amount)}원) 입금 처리하시겠습니까?`)) return;
-
-  bil.isPaid = true;
-  bil.paidAt = new Date().toISOString();
-
-  await persistData();
-  renderBillings();
-  renderDashboard();
-  showToast('입금 처리되었습니다');
-}
-
-async function deleteBilling(id) {
-  if (!confirm('청구서를 삭제할까요?')) return;
-  appData.billings = appData.billings.filter(b => b.id !== id);
-  await persistData();
-  renderBillings();
-  showToast('삭제되었습니다');
-}
-
-function openBillingDetail(id) {
-  const bil = appData.billings.find(b => b.id === id);
-  if (!bil) return;
-
-  document.getElementById('bil-detail-title').textContent = bil.title;
-
-  const records = appData.records.filter(r => r.date >= bil.startDate && r.date <= bil.endDate);
-  records.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  const rows = records.map(r => `
-    <tr>
-      <td style="font-size:12px; color:var(--gray-500);">${formatDate(r.date)}</td>
-      <td style="font-size:13px;">${escHtml(r.item)}</td>
-      <td style="font-size:12px; color:var(--gray-500);">${escHtml(r.card || '')}</td>
-      <td style="text-align:right; font-size:13px; font-weight:600; color:${r.cardAmount > 0 ? 'var(--primary-dark)' : 'var(--success)'};">
-        ${formatMoney((r.cardAmount || 0) + (r.cashAmount || 0))}
-      </td>
-    </tr>
-  `).join('');
-
-  document.getElementById('bil-detail-content').innerHTML = `
-    <div class="billing-meta">
-      📅 ${formatDate(bil.startDate)} ~ ${formatDate(bil.endDate)}<br>
-      <span class="billing-status ${bil.isPaid ? 'status-paid' : 'status-unpaid'}">
-        ${bil.isPaid ? `✅ 입금완료 (${formatDate(bil.paidAt ? bil.paidAt.substring(0,10) : '')})` : '⏳ 미입금'}
-      </span>
-    </div>
-    <div style="font-size:20px; font-weight:700; color:var(--primary-dark); margin: 10px 0;">
-      총 ${formatMoney(bil.amount)}원
-    </div>
-    <table style="width:100%; border-collapse:collapse; font-size:13px;">
-      <thead>
-        <tr style="border-bottom:2px solid var(--gray-200);">
-          <th style="text-align:left; padding:6px 4px; color:var(--gray-500); font-size:12px;">날짜</th>
-          <th style="text-align:left; padding:6px 4px; color:var(--gray-500); font-size:12px;">항목</th>
-          <th style="text-align:left; padding:6px 4px; color:var(--gray-500); font-size:12px;">카드</th>
-          <th style="text-align:right; padding:6px 4px; color:var(--gray-500); font-size:12px;">금액</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-    ${!bil.isPaid ? `
-      <div style="margin-top:16px;">
-        <button class="btn btn-success btn-full" onclick="markPaid('${bil.id}'); closeModal('modal-billing-detail');">
-          ✅ 입금 처리
-        </button>
-      </div>
-    ` : ''}
-  `;
-
-  openModal('modal-billing-detail');
 }
 
 // ══════════════════════════════════════════════
