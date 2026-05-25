@@ -150,8 +150,9 @@ class GistDB {
     const file = json.files?.[this.#filename];
     if (!file) return null;
     // 파일이 크면 API 응답의 content가 잘림 → raw_url로 전체 내용 가져오기
+    // raw_url은 인증 헤더 없이 접근 가능 (Authorization 헤더 시 CORS 오류 발생)
     if (file.truncated && file.raw_url) {
-      const rawRes = await fetch(file.raw_url, { headers: this.#headers() });
+      const rawRes = await fetch(file.raw_url);
       if (!rawRes.ok) return null;
       try   { return await rawRes.json(); }
       catch { return null; }
