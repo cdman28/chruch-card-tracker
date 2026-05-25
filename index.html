@@ -689,7 +689,7 @@
   <header class="app-header">
     <div>
       <h1>✝️ 교회 카드 지출</h1>
-      <span class="header-version">앱 업데이트 일시: 2026.05.25 17:57</span>
+      <span class="header-version" id="header-version"></span>
     </div>
     <div class="header-actions">
       <button class="btn-icon" onclick="exportExcel()" title="엑셀 내보내기">📥 내보내기</button>
@@ -931,7 +931,22 @@ function showApp() {
   initCardFilter();
   buildMerchantDatalist();
   renderAll();
+  setLastModified();
   runMigrations(); // 1회성 마이그레이션 순차 실행
+}
+
+function setLastModified() {
+  const el = document.getElementById('header-version');
+  if (!el) return;
+  const d = new Date(document.lastModified);
+  if (isNaN(d.getTime())) return;
+  const fmt =
+    d.getFullYear() + '.' +
+    String(d.getMonth() + 1).padStart(2, '0') + '.' +
+    String(d.getDate()).padStart(2, '0') + ' ' +
+    String(d.getHours()).padStart(2, '0') + ':' +
+    String(d.getMinutes()).padStart(2, '0');
+  el.textContent = '앱 업데이트 일시: ' + fmt;
 }
 
 async function runMigrations() {
@@ -1438,6 +1453,7 @@ async function saveRecord(e) {
   buildMerchantDatalist();
   renderAll();
   showToast(id ? '수정되었습니다' : '저장되었습니다');
+}
 }
 
 async function deleteRecord() {
