@@ -149,6 +149,13 @@ class GistDB {
     const json = await res.json();
     const file = json.files?.[this.#filename];
     if (!file) return null;
+    // 파일이 크면 API 응답의 content가 잘림 → raw_url로 전체 내용 가져오기
+    if (file.truncated && file.raw_url) {
+      const rawRes = await fetch(file.raw_url, { headers: this.#headers() });
+      if (!rawRes.ok) return null;
+      try   { return await rawRes.json(); }
+      catch { return null; }
+    }
     try   { return JSON.parse(file.content); }
     catch { return null; }
   }
