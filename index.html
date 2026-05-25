@@ -288,6 +288,75 @@
     .fab:hover { transform: scale(1.07); box-shadow: 0 6px 20px rgba(37,99,235,0.55); }
     .fab.hidden { display: none; }
 
+    /* ─── 일괄입력 ─── */
+    .batch-textarea {
+      width: 100%;
+      height: 160px;
+      padding: 12px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-family: 'Consolas', 'D2Coding', monospace;
+      resize: vertical;
+      line-height: 1.6;
+      color: var(--gray-800);
+    }
+    .batch-textarea:focus { outline: none; border-color: var(--primary); }
+    .batch-table-wrap { overflow-x: auto; margin-top: 12px; }
+    .batch-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 640px;
+    }
+    .batch-table th {
+      background: var(--gray-100);
+      color: var(--gray-600);
+      font-weight: 700;
+      padding: 7px 8px;
+      text-align: left;
+      border-bottom: 2px solid var(--gray-200);
+      white-space: nowrap;
+    }
+    .batch-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--gray-100);
+      vertical-align: middle;
+    }
+    .batch-table tr.row-ok   td:first-child { border-left: 3px solid var(--success); }
+    .batch-table tr.row-warn td:first-child { border-left: 3px solid var(--warning); }
+    .batch-table tr.row-err  td:first-child { border-left: 3px solid var(--danger); }
+    .batch-table tr.row-ok   { background: #f0fdf4; }
+    .batch-table tr.row-warn { background: #fffbeb; }
+    .batch-table tr.row-err  { background: #fef2f2; }
+    .batch-table input, .batch-table select {
+      width: 100%;
+      padding: 4px 6px;
+      border: 1px solid var(--gray-300);
+      border-radius: 4px;
+      font-size: 12px;
+      background: white;
+    }
+    .batch-table input:focus, .batch-table select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .batch-hint {
+      background: var(--primary-light);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      font-size: 12px;
+      color: var(--primary-dark);
+      margin-bottom: 12px;
+      line-height: 1.7;
+    }
+    .batch-hint code {
+      background: rgba(37,99,235,0.1);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+
     /* ─── 필터 바 ─── */
     .filter-bar {
       display: flex;
@@ -621,6 +690,7 @@
     <div class="nav-tab" data-tab="records" onclick="switchTab('records')">📋 내역</div>
     <div class="nav-tab" data-tab="billing" onclick="switchTab('billing')">🧾 청구</div>
     <div class="nav-tab" data-tab="search" onclick="switchTab('search')">🔍 검색</div>
+    <div class="nav-tab" data-tab="batch" onclick="switchTab('batch')">📦 일괄입력</div>
   </nav>
 
   <div class="content">
@@ -677,6 +747,27 @@
         </select>
       </div>
       <div id="search-results"></div>
+    </div>
+
+    <!-- 일괄입력 탭 -->
+    <div id="page-batch" class="page">
+      <div class="batch-hint">
+        💡 <strong>어떤 형식이든 OK!</strong> 한 줄에 한 건씩 붙여넣으세요.<br>
+        지원 구분자: <code>탭(엑셀 복사)</code> <code>/</code> <code>2칸 이상 공백</code><br>
+        인식 항목: 날짜 · 금액 · 상호 · 카드 (카드는 없어도 됨) · 항목명<br>
+        예) <code>2026-04-11&nbsp;&nbsp;교역자 식사&nbsp;&nbsp;28500&nbsp;&nbsp;배민1</code><br>
+        예) <code>위생 가림막 / 309680원 / 2022.5.31 / 쿠팡</code>
+      </div>
+      <textarea class="batch-textarea" id="batch-input"
+        placeholder="여기에 데이터를 붙여넣으세요...
+
+2026-04-11&#9;교역자 식사&#9;28,500&#9;&#9;배민1
+위생 가림막 / 309680원 / 2022.5.31 / 쿠팡 / 기업"></textarea>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn btn-primary" onclick="previewBatch()">🔍 미리보기</button>
+        <button class="btn btn-outline" onclick="clearBatch()">초기화</button>
+      </div>
+      <div id="batch-preview"></div>
     </div>
 
   </div>
@@ -956,7 +1047,7 @@ function switchTab(tab) {
     el.classList.toggle('active', el.id === `page-${tab}`);
   });
   const fab = document.getElementById('fab-btn');
-  fab.classList.toggle('hidden', tab === 'billing' || tab === 'search');
+  fab.classList.toggle('hidden', tab === 'billing' || tab === 'search' || tab === 'batch');
 
   if (tab === 'dashboard')  renderDashboard();
   if (tab === 'records')    renderRecords();
@@ -1397,6 +1488,221 @@ function openBillingDetail(id) {
   `;
 
   openModal('modal-billing-detail');
+}
+
+// ══════════════════════════════════════════════
+//  일괄 입력 & 스마트 파싱
+// ══════════════════════════════════════════════
+const KNOWN_CARDS = ['삼성', '기업', '국민', '롯데', '신한', '우리', '네이버현대', '코스트코현대', '이체', '현금', '기타'];
+const BASE_MERCHANTS = ['쿠팡', '배민1', '배달의민족', '네이버', '인포뱅크', '지마켓', '롯데온', '총회', '위택스', 'SK주유소',
+  '코러스센터', '땡겨요', '나이스커피', '빛나라', '중앙아트', '기계설비', '아너스코리아', '코스트코', '이마트', '홈플러스'];
+
+function parseDate(str) {
+  if (!str) return '';
+  // 날짜 패턴: YYYY-MM-DD, YYYY.M.D(일), YYYY/MM/DD
+  const m = str.match(/(\d{4})[\-.\/ ](\d{1,2})[\-.\/ ](\d{1,2})/);
+  if (m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+  return '';
+}
+
+function parseAmount(str) {
+  if (!str) return 0;
+  const cleaned = str.replace(/[,원\s]/g, '');
+  const n = parseInt(cleaned);
+  return (!isNaN(n) && n > 0 && n < 100000000) ? n : 0;
+}
+
+function isLikelyMerchant(token) {
+  const dbMerchants = [...new Set(appData.records.map(r => r.merchant).filter(Boolean))];
+  const all = [...BASE_MERCHANTS, ...dbMerchants];
+  return all.some(m => token.includes(m) || m.includes(token));
+}
+
+function parseSmartLine(rawLine) {
+  const line = rawLine.trim();
+  if (!line) return null;
+
+  let tokens = [];
+  let isTabFormat = false;
+
+  if (line.includes('\t')) {
+    tokens = line.split('\t').map(t => t.trim());
+    isTabFormat = true;
+  } else if (line.includes('/')) {
+    tokens = line.split('/').map(t => t.trim()).filter(Boolean);
+  } else {
+    tokens = line.split(/\s{2,}/).map(t => t.trim()).filter(Boolean);
+    if (tokens.length < 2) tokens = [line]; // 분리 안 되면 통째로
+  }
+
+  const rec = { date: '', item: '', cardAmount: 0, cashAmount: 0, merchant: '', card: '', memo: '', _raw: rawLine };
+
+  if (isTabFormat) {
+    // 엑셀 복사 형식: [날짜, 항목, 카드금액, 이체현금, 상호, 카드명]
+    if (tokens[0]) rec.date       = parseDate(tokens[0]) || '';
+    if (tokens[1]) rec.item       = tokens[1];
+    if (tokens[2]) rec.cardAmount = parseAmount(tokens[2]);
+    if (tokens[3]) rec.cashAmount = parseAmount(tokens[3]);
+    if (tokens[4]) rec.merchant   = tokens[4];
+    if (tokens[5]) rec.card       = tokens[5];
+    // 날짜가 파싱 안 됐으면 순서 무시하고 재분석
+    if (!rec.date) return parseTokensFree(tokens, rawLine);
+    return rec;
+  }
+
+  return parseTokensFree(tokens, rawLine);
+}
+
+function parseTokensFree(tokens, rawLine) {
+  const rec = { date: '', item: '', cardAmount: 0, cashAmount: 0, merchant: '', card: '', memo: '', _raw: rawLine };
+  const used = new Set();
+
+  // 1. 날짜
+  for (let i = 0; i < tokens.length; i++) {
+    const d = parseDate(tokens[i]);
+    if (d) { rec.date = d; used.add(i); break; }
+  }
+  // 2. 금액 (숫자처럼 생긴 토큰)
+  for (let i = 0; i < tokens.length; i++) {
+    if (used.has(i)) continue;
+    const a = parseAmount(tokens[i]);
+    if (a > 0) { rec.cardAmount = a; used.add(i); break; }
+  }
+  // 3. 카드명
+  for (let i = 0; i < tokens.length; i++) {
+    if (used.has(i)) continue;
+    if (KNOWN_CARDS.includes(tokens[i])) { rec.card = tokens[i]; used.add(i); break; }
+  }
+  // 4. 상호 (알려진 상호 목록)
+  for (let i = 0; i < tokens.length; i++) {
+    if (used.has(i)) continue;
+    if (isLikelyMerchant(tokens[i])) { rec.merchant = tokens[i]; used.add(i); break; }
+  }
+  // 5. 나머지 → 항목명 / 상호(못 찾은 경우 2번째 텍스트)
+  for (let i = 0; i < tokens.length; i++) {
+    if (used.has(i)) continue;
+    const t = tokens[i];
+    if (!t) continue;
+    if (!rec.item)     { rec.item = t;     used.add(i); }
+    else if (!rec.merchant) { rec.merchant = t; used.add(i); }
+    else                { rec.memo += (rec.memo ? ' ' : '') + t; used.add(i); }
+  }
+  return rec;
+}
+
+function getBatchStatus(rec) {
+  if (!rec.item) return 'err';
+  if (!rec.date || (!rec.cardAmount && !rec.cashAmount)) return 'warn';
+  return 'ok';
+}
+
+let batchParsed = [];
+
+function previewBatch() {
+  const text = document.getElementById('batch-input').value;
+  if (!text.trim()) { showToast('데이터를 입력해주세요.'); return; }
+
+  const lines = text.split('\n');
+  batchParsed = lines.map(parseSmartLine).filter(Boolean);
+
+  if (!batchParsed.length) { showToast('인식된 항목이 없습니다.'); return; }
+
+  renderBatchTable();
+}
+
+function renderBatchTable() {
+  const cardOptions = KNOWN_CARDS.map(c => `<option value="${c}">${c}</option>`).join('');
+  const okCount   = batchParsed.filter(r => getBatchStatus(r) === 'ok').length;
+  const warnCount = batchParsed.filter(r => getBatchStatus(r) === 'warn').length;
+  const errCount  = batchParsed.filter(r => getBatchStatus(r) === 'err').length;
+
+  const statusBar = `
+    <div style="display:flex; gap:10px; margin:12px 0 8px; font-size:12px; font-weight:600;">
+      <span style="color:var(--success);">✅ 정상 ${okCount}건</span>
+      <span style="color:var(--warning);">⚠️ 확인필요 ${warnCount}건</span>
+      ${errCount ? `<span style="color:var(--danger);">❌ 오류 ${errCount}건</span>` : ''}
+      <span style="margin-left:auto; color:var(--gray-500);">총 ${batchParsed.length}건</span>
+    </div>
+  `;
+
+  const rows = batchParsed.map((rec, idx) => {
+    const st = getBatchStatus(rec);
+    return `
+      <tr class="row-${st}" data-idx="${idx}">
+        <td><input type="checkbox" class="batch-chk" data-idx="${idx}" ${st !== 'err' ? 'checked' : ''}></td>
+        <td><input type="date" value="${rec.date}" onchange="batchParsed[${idx}].date=this.value"></td>
+        <td><input type="text" value="${escHtml(rec.item)}" placeholder="항목명 *" onchange="batchParsed[${idx}].item=this.value"></td>
+        <td><input type="number" value="${rec.cardAmount || ''}" placeholder="0" min="0" onchange="batchParsed[${idx}].cardAmount=parseInt(this.value)||0"></td>
+        <td><input type="number" value="${rec.cashAmount || ''}" placeholder="0" min="0" onchange="batchParsed[${idx}].cashAmount=parseInt(this.value)||0"></td>
+        <td><input type="text" value="${escHtml(rec.merchant)}" placeholder="상호" onchange="batchParsed[${idx}].merchant=this.value" list="merchant-list"></td>
+        <td><select onchange="batchParsed[${idx}].card=this.value"><option value="">-</option>${cardOptions.replace(`value="${rec.card}"`, `value="${rec.card}" selected`)}</select></td>
+        <td style="font-size:11px; color:var(--gray-400); max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escHtml(rec._raw)}">${escHtml(rec._raw.trim().substring(0,30))}…</td>
+      </tr>
+    `;
+  }).join('');
+
+  document.getElementById('batch-preview').innerHTML = `
+    ${statusBar}
+    <div class="batch-table-wrap">
+      <table class="batch-table">
+        <thead>
+          <tr>
+            <th>✓</th><th>날짜</th><th>항목명</th>
+            <th>카드금액</th><th>이체/현금</th>
+            <th>상호</th><th>카드</th><th>원본</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button class="btn btn-success flex-1" onclick="saveBatchRecords()">✅ 체크된 항목 저장</button>
+      <button class="btn btn-outline" onclick="toggleAllBatch()">전체 선택/해제</button>
+    </div>
+  `;
+}
+
+async function saveBatchRecords() {
+  const checked = [...document.querySelectorAll('.batch-chk:checked')].map(el => parseInt(el.dataset.idx));
+  if (!checked.length) { showToast('저장할 항목을 선택해주세요.'); return; }
+
+  const toSave = checked.map(i => batchParsed[i]).filter(r => r.item);
+  if (!toSave.length) { showToast('항목명이 없는 행은 저장할 수 없습니다.'); return; }
+
+  toSave.forEach(rec => {
+    appData.records.push({
+      id:          genId(),
+      date:        rec.date || today(),
+      item:        rec.item,
+      cardAmount:  rec.cardAmount || 0,
+      cashAmount:  rec.cashAmount || 0,
+      merchant:    rec.merchant || '',
+      card:        rec.card || '',
+      memo:        rec.memo || '',
+      createdAt:   new Date().toISOString(),
+    });
+  });
+
+  await persistData();
+  buildMerchantDatalist();
+  initYearFilter();
+  batchParsed = [];
+  document.getElementById('batch-preview').innerHTML = '';
+  document.getElementById('batch-input').value = '';
+  showToast(`${toSave.length}건이 저장되었습니다`);
+  renderDashboard();
+}
+
+function clearBatch() {
+  document.getElementById('batch-input').value = '';
+  document.getElementById('batch-preview').innerHTML = '';
+  batchParsed = [];
+}
+
+function toggleAllBatch() {
+  const chks = document.querySelectorAll('.batch-chk');
+  const anyUnchecked = [...chks].some(c => !c.checked);
+  chks.forEach(c => c.checked = anyUnchecked);
 }
 
 // ══════════════════════════════════════════════
