@@ -895,9 +895,8 @@ async function init() {
         if (!appData.records)  appData.records  = [];
         if (!appData.billings) appData.billings = [];
         appData.records.forEach(r => { if (r.billed === undefined) r.billed = false; });
-      } else {
-        await db.save(appData);
       }
+      // data가 null이어도 Gist를 덮어쓰지 않음 — 빈 상태로 앱 시작만 함
       showApp();
     } catch (err) {
       if (err.message.includes('401') || err.message.includes('403')) {
@@ -1854,6 +1853,7 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 // ══════════════════════════════════════════════
 async function migrateLastWeekBillings() {
   if (appData._lastWeekMigrated) return; // 이미 실행됨
+  if (!appData.records || appData.records.length === 0) return; // 데이터 없으면 실행 안 함
 
   const targets = [
     { date: '2026-05-22', item: '조의금(미화원 박종필)', cashAmount: 100000 },
@@ -1913,6 +1913,7 @@ async function migrateLastWeekBillings() {
 // ── 과거 내역 일괄 청구/입금 완료 마이그레이션 ──
 async function migrateAllHistoricalPaid() {
   if (appData._allHistoricalMigrated) return;
+  if (!appData.records || appData.records.length === 0) return; // 데이터 없으면 실행 안 함
 
   const unbilled = appData.records.filter(r => !r.billed);
 
