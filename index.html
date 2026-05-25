@@ -1331,13 +1331,15 @@ function renderPending() {
 
     return `
       <div class="billing-item">
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+        <div style="margin-bottom:8px;">
           <span class="billing-title">📅 청구일: ${b.date}</span>
-          <span class="billing-status status-unpaid">미입금</span>
         </div>
-        <div style="margin-bottom:4px;">
-          <span style="font-size:12px; color:var(--gray-500); margin-right:6px;">총금액</span>
-          <span class="billing-amount">${formatMoney(b.amount)}</span><span style="font-size:14px; font-weight:500; color:var(--gray-500);">원</span>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <div>
+            <span style="font-size:12px; color:var(--gray-500); margin-right:6px;">총금액</span>
+            <span class="billing-amount">${formatMoney(b.amount)}</span><span style="font-size:14px; font-weight:500; color:var(--gray-500);">원</span>
+          </div>
+          <span class="billing-status status-unpaid">미입금</span>
         </div>
         ${summaryHtml}
         <div style="margin-top:8px; max-width:50%;">${itemRows}</div>
