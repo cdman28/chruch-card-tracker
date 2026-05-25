@@ -1313,6 +1313,18 @@ function renderPending() {
         <span style="color:var(--gray-400); font-size:11px;">(${g.count}건)</span>
       </span>`
     ).join('');
+
+    // 카드 / 현금·이체 합계 계산
+    const ids = new Set(b.recordIds || []);
+    const related = appData.records.filter(r => ids.has(r.id));
+    const cardTotal = related.reduce((s, r) => s + (r.cardAmount || 0), 0);
+    const cashTotal = related.reduce((s, r) => s + (r.cashAmount || 0), 0);
+    const summaryHtml = (cardTotal > 0 || cashTotal > 0) ? `
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin:4px 0 6px; font-size:13px;">
+        ${cardTotal > 0 ? `<span style="color:var(--primary);">💳 카드 <strong>${formatMoney(cardTotal)}원</strong></span>` : ''}
+        ${cashTotal > 0 ? `<span style="color:var(--success);">🏦 현금·이체 <strong>${formatMoney(cashTotal)}원</strong></span>` : ''}
+      </div>` : '';
+
     return `
       <div class="billing-item">
         <div class="billing-header">
@@ -1320,6 +1332,7 @@ function renderPending() {
           <span class="billing-status status-unpaid">미입금</span>
         </div>
         <div class="billing-amount" style="margin:6px 0;">${formatMoney(b.amount)}<span style="font-size:14px; font-weight:500; color:var(--gray-500);">원</span></div>
+        ${summaryHtml}
         <div class="billing-meta" style="line-height:1.8;">${itemLines || '항목 정보 없음'}</div>
         <div class="billing-actions">
           <button class="btn btn-success btn-sm" onclick="markPaid('${b.id}')">✅ 입금완료</button>
