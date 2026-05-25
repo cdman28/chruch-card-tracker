@@ -1307,33 +1307,40 @@ function renderPending() {
   }
 
   document.getElementById('pending-list').innerHTML = pending.map(b => {
-    const itemLines = (b.groups || []).map(g =>
-      `<span style="display:inline-block; margin-right:8px; margin-bottom:4px;">
-        ${escHtml(g.item)} <strong>${formatMoney(g.amount)}원</strong>
-        <span style="color:var(--gray-400); font-size:11px;">(${g.count}건)</span>
-      </span>`
-    ).join('');
-
     // 카드 / 현금·이체 합계 계산
     const ids = new Set(b.recordIds || []);
     const related = appData.records.filter(r => ids.has(r.id));
     const cardTotal = related.reduce((s, r) => s + (r.cardAmount || 0), 0);
     const cashTotal = related.reduce((s, r) => s + (r.cashAmount || 0), 0);
     const summaryHtml = (cardTotal > 0 || cashTotal > 0) ? `
-      <div style="display:flex; gap:12px; flex-wrap:wrap; margin:4px 0 6px; font-size:13px;">
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin:4px 0 8px; font-size:13px;">
         ${cardTotal > 0 ? `<span style="color:var(--primary);">💳 카드 <strong>${formatMoney(cardTotal)}원</strong></span>` : ''}
         ${cashTotal > 0 ? `<span style="color:var(--success);">🏦 현금·이체 <strong>${formatMoney(cashTotal)}원</strong></span>` : ''}
       </div>` : '';
 
+    // 세부 내역 한 줄씩
+    const itemRows = (b.groups || []).map(g => `
+      <div style="display:flex; justify-content:space-between; align-items:center;
+                  padding:6px 0; border-bottom:1px solid var(--gray-100); font-size:13px;">
+        <span style="color:var(--gray-700);">${escHtml(g.item)}</span>
+        <span>
+          <strong style="color:var(--gray-800);">${formatMoney(g.amount)}원</strong>
+          <span style="color:var(--gray-400); font-size:11px; margin-left:4px;">(${g.count}건)</span>
+        </span>
+      </div>`).join('') || `<div style="color:var(--gray-400); font-size:13px;">항목 정보 없음</div>`;
+
     return `
       <div class="billing-item">
-        <div class="billing-header">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
           <span class="billing-title">📅 청구일: ${b.date}</span>
           <span class="billing-status status-unpaid">미입금</span>
         </div>
-        <div class="billing-amount" style="margin:6px 0;">${formatMoney(b.amount)}<span style="font-size:14px; font-weight:500; color:var(--gray-500);">원</span></div>
+        <div style="margin-bottom:4px;">
+          <span style="font-size:12px; color:var(--gray-500); margin-right:6px;">총금액</span>
+          <span class="billing-amount">${formatMoney(b.amount)}</span><span style="font-size:14px; font-weight:500; color:var(--gray-500);">원</span>
+        </div>
         ${summaryHtml}
-        <div class="billing-meta" style="line-height:1.8;">${itemLines || '항목 정보 없음'}</div>
+        <div style="margin-top:8px;">${itemRows}</div>
         <div class="billing-actions">
           <button class="btn btn-success btn-sm" onclick="markPaid('${b.id}')">✅ 입금완료</button>
         </div>
