@@ -93,10 +93,12 @@
       transition: color 0.15s, border-color 0.15s;
     }
     .nav-tab.active {
-      color: var(--primary);
+      color: white;
+      background: var(--primary);
       border-bottom-color: var(--primary);
+      font-weight: 700;
     }
-    .nav-tab:hover:not(.active) { color: var(--gray-700); }
+    .nav-tab:hover:not(.active) { background: var(--gray-100); color: var(--gray-700); }
 
     /* ─── 콘텐츠 ─── */
     .content { padding: 16px; max-width: 800px; margin: 0 auto; }
