@@ -1340,7 +1340,7 @@ function renderPending() {
           <span class="billing-amount">${formatMoney(b.amount)}</span><span style="font-size:14px; font-weight:500; color:var(--gray-500);">원</span>
         </div>
         ${summaryHtml}
-        <div style="margin-top:8px;">${itemRows}</div>
+        <div style="margin-top:8px; max-width:50%;">${itemRows}</div>
         <div class="billing-actions">
           <button class="btn btn-success btn-sm" onclick="markPaid('${b.id}')">✅ 입금완료</button>
         </div>
