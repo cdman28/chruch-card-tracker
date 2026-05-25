@@ -925,7 +925,12 @@ function showApp() {
   initCardFilter();
   buildMerchantDatalist();
   renderAll();
-  migrateLastWeekBillings(); // 1회 실행 후 자동 비활성화
+  runMigrations(); // 1회성 마이그레이션 순차 실행
+}
+
+async function runMigrations() {
+  await migrateLastWeekBillings();
+  await migrateAllHistoricalPaid();
 }
 
 function showLoading(show) {
@@ -1901,6 +1906,51 @@ async function migrateLastWeekBillings() {
   } else {
     await persistData();
   }
+}
+
+// ── 과거 내역 일괄 청구/입금 완료 마이그레이션 ──
+async function migrateAllHistoricalPaid() {
+  if (appData._allHistoricalMigrated) return;
+
+  const unbilled = appData.records.filter(r => !r.billed);
+
+  appData._allHistoricalMigrated = true;
+
+  if (unbilled.length === 0) {
+    await persistData();
+    return;
+  }
+
+  // 모두 청구 완료 처리
+  unbilled.forEach(r => { r.billed = true; });
+
+  // 항목별 그룹핑
+  const groupMap = {};
+  unbilled.forEach(r => {
+    const key = r.item;
+    if (!groupMap[key]) groupMap[key] = { item: key, amount: 0, count: 0 };
+    groupMap[key].amount += (r.cardAmount || 0) + (r.cashAmount || 0);
+    groupMap[key].count++;
+  });
+
+  const groupList = Object.values(groupMap);
+  const totalAmount = groupList.reduce((s, g) => s + g.amount, 0);
+
+  appData.billings = appData.billings || [];
+  appData.billings.push({
+    id: genId(),
+    date: '2026-05-25',
+    amount: totalAmount,
+    isPaid: true,
+    paidAt: new Date().toISOString(),
+    groups: groupList,
+    recordIds: unbilled.map(r => r.id),
+    createdAt: new Date().toISOString(),
+  });
+
+  await persistData();
+  showToast(`✅ 과거 내역 ${unbilled.length}건 청구 및 입금 완료 처리되었습니다.`);
+  renderAll();
 }
 
 // ══════════════════════════════════════════════
