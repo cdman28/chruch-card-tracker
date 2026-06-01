@@ -1496,9 +1496,12 @@ const BASE_MERCHANTS = ['쿠팡', '배민1', '배달의민족', '네이버', '�
 
 function parseDate(str) {
   if (!str) return '';
-  // 날짜 패턴: YYYY-MM-DD, YYYY.M.D(일), YYYY/MM/DD
-  const m = str.match(/(\d{4})[\-.\/ ](\d{1,2})[\-.\/ ](\d{1,2})/);
-  if (m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+  // 날짜 패턴: YYYY-MM-DD, YYYY.M.D, YYYY/MM/DD (4자리 연도)
+  const m4 = str.match(/(\d{4})[\-.\/ ](\d{1,2})[\-.\/ ](\d{1,2})/);
+  if (m4) return `${m4[1]}-${String(m4[2]).padStart(2,'0')}-${String(m4[3]).padStart(2,'0')}`;
+  // 날짜 패턴: YY.M.D, YY-M-D, YY/M/D (2자리 연도 → 2000년대로 변환)
+  const m2 = str.match(/^(\d{2})[\-.\/ ](\d{1,2})[\-.\/ ](\d{1,2})$/);
+  if (m2) return `20${m2[1]}-${String(m2[2]).padStart(2,'0')}-${String(m2[3]).padStart(2,'0')}`;
   return '';
 }
 
@@ -1835,11 +1838,18 @@ function initCardFilter() {
     cards.map(c => `<option value="${c}">${c}</option>`).join('');
 }
 
-// 상호 데이터리스트 빌드
+// 상호 데이터리스트 빌드 (사용 빈도 상위 10개)
 function buildMerchantDatalist() {
-  const merchants = [...new Set(appData.records.map(r => r.merchant).filter(Boolean))];
+  const freq = {};
+  appData.records.forEach(r => {
+    if (r.merchant) freq[r.merchant] = (freq[r.merchant] || 0) + 1;
+  });
+  const top10 = Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([m]) => m);
   document.getElementById('merchant-list').innerHTML =
-    merchants.map(m => `<option value="${m}">`).join('');
+    top10.map(m => `<option value="${m}">`).join('');
 }
 
 // 즐겨찾기 빌드
