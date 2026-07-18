@@ -877,7 +877,7 @@
 // ══════════════════════════════════════════════
 //  앱 버전
 // ══════════════════════════════════════════════
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.4';
 
 // ══════════════════════════════════════════════
 //  앱 상태
@@ -1393,8 +1393,16 @@ function renderHistory() {
   const totalPaid = paid.reduce((s, b) => s + (b.amount || 0), 0);
   const summaryBar = `
     <div class="card" style="padding:12px; margin-bottom:10px;">
-      <span style="font-size:13px; color:var(--gray-600);">${paid.length}건 입금 완료</span>
-      <span style="float:right; font-size:15px; font-weight:700; color:var(--success);">누계 ${formatMoney(totalPaid)}원</span>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:13px; color:var(--gray-600);">${paid.length}건 입금 완료</span>
+        <span style="font-size:15px; font-weight:700; color:var(--success);">누계 ${formatMoney(totalPaid)}원</span>
+      </div>
+    </div>
+    <div id="history-selection-bar" class="card" style="padding:12px; margin-bottom:10px; background:var(--primary-light); border-left:3px solid var(--primary); display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span id="history-sel-count" style="font-size:13px; color:var(--primary-dark);">0건 선택</span>
+        <span id="history-sel-total" style="font-size:15px; font-weight:700; color:var(--primary-dark);">합계 0원</span>
+      </div>
     </div>`;
 
   const items = paid.map(b => {
@@ -1423,19 +1431,26 @@ function renderHistory() {
 
     return `
       <div class="billing-item" style="max-width:50%; margin:0 auto 16px auto;">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-          <span class="billing-title">📅 청구일: ${b.date}</span>
-          <span class="billing-status status-paid">✅ 입금완료</span>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+          <input type="checkbox" class="history-chk" data-id="${b.id}" data-amount="${b.amount}" 
+            style="width:18px; height:18px; cursor:pointer; accent-color:var(--primary);"
+            onchange="updateHistoryTotal()">
+          <div style="flex:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="billing-title">📅 청구일: ${b.date}</span>
+              <span class="billing-status status-paid">✅ 입금완료</span>
+            </div>
+          </div>
         </div>
-        <div style="display:flex; align-items:center; gap:4px; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:4px; margin-bottom:10px; margin-left:28px;">
           <span style="font-size:12px; color:var(--gray-500);">총금액</span>
           <span class="billing-amount">${formatMoney(b.amount)}</span><span style="font-size:14px; font-weight:500; color:var(--gray-500);">원</span>
         </div>
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:8px; margin-left:28px;">
           <button class="btn btn-outline btn-sm flex-1" onclick="toggleHistoryDetail('${b.id}', this)">▼ 세부내역 보기</button>
           <button class="btn btn-danger btn-sm" onclick="deleteHistoryItem('${b.id}')">🗑️</button>
         </div>
-        <div id="history-detail-${b.id}" style="display:none; margin-top:10px;">
+        <div id="history-detail-${b.id}" style="display:none; margin-top:10px; margin-left:28px;">
           <div style="font-size:12px; color:var(--gray-400); margin-bottom:8px;">입금확인일: ${paidDate}</div>
           ${summaryHtml}
           <div>${itemRows}</div>
@@ -1444,6 +1459,27 @@ function renderHistory() {
   }).join('');
 
   el.innerHTML = summaryBar + items;
+}
+
+function updateHistoryTotal() {
+  const chks = document.querySelectorAll('.history-chk:checked');
+  const count = chks.length;
+  let total = 0;
+  chks.forEach(chk => {
+    total += parseInt(chk.dataset.amount) || 0;
+  });
+
+  const bar = document.getElementById('history-selection-bar');
+  const selCount = document.getElementById('history-sel-count');
+  const selTotal = document.getElementById('history-sel-total');
+
+  if (count > 0) {
+    bar.style.display = 'block';
+    selCount.textContent = `${count}건 선택`;
+    selTotal.textContent = `합계 ${formatMoney(total)}원`;
+  } else {
+    bar.style.display = 'none';
+  }
 }
 
 function toggleHistoryDetail(id, btn) {
