@@ -877,7 +877,7 @@
 // ══════════════════════════════════════════════
 //  앱 버전
 // ══════════════════════════════════════════════
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 
 // ══════════════════════════════════════════════
 //  앱 상태
@@ -1379,7 +1379,7 @@ async function markPaid(billingId) {
 // ── 과거 청구 탭 (입금 완료된 청구 내역) ──
 function renderHistory() {
   const paid = (appData.billings || [])
-    .filter(b => b.isPaid)
+    .filter(b => b.isPaid && !b.hidden)
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const el = document.getElementById('history-list');
@@ -1422,22 +1422,45 @@ function renderHistory() {
       </div>`).join('') || `<div style="color:var(--gray-400); font-size:13px;">항목 정보 없음</div>`;
 
     return `
-      <div class="billing-item" style="max-width:50%; margin:0 auto 16px auto; opacity:0.92;">
+      <div class="billing-item" style="max-width:50%; margin:0 auto 16px auto;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
           <span class="billing-title">📅 청구일: ${b.date}</span>
           <span class="billing-status status-paid">✅ 입금완료</span>
         </div>
-        <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
+        <div style="display:flex; align-items:center; gap:4px; margin-bottom:10px;">
           <span style="font-size:12px; color:var(--gray-500);">총금액</span>
           <span class="billing-amount">${formatMoney(b.amount)}</span><span style="font-size:14px; font-weight:500; color:var(--gray-500);">원</span>
         </div>
-        <div style="font-size:12px; color:var(--gray-400); margin-bottom:8px;">입금확인일: ${paidDate}</div>
-        ${summaryHtml}
-        <div style="margin-top:8px;">${itemRows}</div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-outline btn-sm flex-1" onclick="toggleHistoryDetail('${b.id}', this)">▼ 세부내역 보기</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteHistoryItem('${b.id}')">🗑️</button>
+        </div>
+        <div id="history-detail-${b.id}" style="display:none; margin-top:10px;">
+          <div style="font-size:12px; color:var(--gray-400); margin-bottom:8px;">입금확인일: ${paidDate}</div>
+          ${summaryHtml}
+          <div>${itemRows}</div>
+        </div>
       </div>`;
   }).join('');
 
   el.innerHTML = summaryBar + items;
+}
+
+function toggleHistoryDetail(id, btn) {
+  const detail = document.getElementById('history-detail-' + id);
+  if (!detail) return;
+  const isHidden = detail.style.display === 'none';
+  detail.style.display = isHidden ? 'block' : 'none';
+  btn.textContent = isHidden ? '▲ 세부내역 닫기' : '▼ 세부내역 보기';
+}
+
+async function deleteHistoryItem(billingId) {
+  if (!confirm('이 청구 내역을 목록에서 삭제할까요?\n(삭제 후 복구되지 않습니다)')) return;
+  const billing = appData.billings.find(b => b.id === billingId);
+  if (billing) billing.hidden = true;
+  await persistData();
+  showToast('삭제되었습니다.');
+  renderHistory();
 }
 // ── 검색 ──
 function renderSearch() {
