@@ -702,6 +702,7 @@
     <div class="nav-tab" data-tab="batch" onclick="switchTab('batch')">📦 일괄입력</div>
     <div class="nav-tab" data-tab="billing" onclick="switchTab('billing')">🧾 청구</div>
     <div class="nav-tab" data-tab="pending" onclick="switchTab('pending')">💰 지난주 청구</div>
+    <div class="nav-tab" data-tab="history" onclick="switchTab('history')">📁 과거 청구</div>
     <div class="nav-tab" data-tab="records" onclick="switchTab('records')">📂 전체내역</div>
     <div class="nav-tab" data-tab="search" onclick="switchTab('search')">🔍 검색</div>
   </nav>
@@ -740,6 +741,11 @@
     <!-- 지난주 청구 탭 -->
     <div id="page-pending" class="page">
       <div id="pending-list"></div>
+    </div>
+
+    <!-- 과거 청구 탭 -->
+    <div id="page-history" class="page">
+      <div id="history-list"></div>
     </div>
 
     <!-- 검색 탭 -->
@@ -871,7 +877,7 @@
 // ══════════════════════════════════════════════
 //  앱 버전
 // ══════════════════════════════════════════════
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 
 // ══════════════════════════════════════════════
 //  앱 상태
@@ -1037,13 +1043,14 @@ function switchTab(tab) {
     el.classList.toggle('active', el.id === `page-${tab}`);
   });
   const fab = document.getElementById('fab-btn');
-  fab.classList.toggle('hidden', tab === 'billing' || tab === 'search' || tab === 'batch' || tab === 'pending');
+  fab.classList.toggle('hidden', tab === 'billing' || tab === 'search' || tab === 'batch' || tab === 'pending' || tab === 'history');
 
   if (tab === 'unbilled')   renderUnbilled();
   if (tab === 'dashboard')  renderDashboard();
   if (tab === 'records')    renderRecords();
   if (tab === 'billing')    renderBillingTab();
   if (tab === 'pending')    renderPending();
+  if (tab === 'history')    renderHistory();
   if (tab === 'search')     renderSearch();
 }
 
@@ -1055,6 +1062,7 @@ function renderAll() {
   if (document.getElementById('records-list'))        renderRecords();
   if (document.getElementById('billing-tab-content')) renderBillingTab();
   if (document.getElementById('pending-list'))        renderPending();
+  if (document.getElementById('history-list'))        renderHistory();
   if (document.getElementById('search-results'))      renderSearch();
 }
 
@@ -1365,6 +1373,71 @@ async function markPaid(billingId) {
   await persistData();
   showToast('✅ 입금 완료 처리되었습니다.');
   renderPending();
+  renderHistory();
+}
+
+// ── 과거 청구 탭 (입금 완료된 청구 내역) ──
+function renderHistory() {
+  const paid = (appData.billings || [])
+    .filter(b => b.isPaid)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const el = document.getElementById('history-list');
+  if (!el) return;
+
+  if (paid.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📁</div><p>입금 완료된 청구 내역이 없습니다</p></div>`;
+    return;
+  }
+
+  const totalPaid = paid.reduce((s, b) => s + (b.amount || 0), 0);
+  const summaryBar = `
+    <div class="card" style="padding:12px; margin-bottom:10px;">
+      <span style="font-size:13px; color:var(--gray-600);">${paid.length}건 입금 완료</span>
+      <span style="float:right; font-size:15px; font-weight:700; color:var(--success);">누계 ${formatMoney(totalPaid)}원</span>
+    </div>`;
+
+  const items = paid.map(b => {
+    const ids = new Set(b.recordIds || []);
+    const related = appData.records.filter(r => ids.has(r.id));
+    const cardTotal = related.reduce((s, r) => s + (r.cardAmount || 0), 0);
+    const cashTotal = related.reduce((s, r) => s + (r.cashAmount || 0), 0);
+
+    const summaryHtml = (cardTotal > 0 || cashTotal > 0) ? `
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin:4px 0 8px; font-size:13px;">
+        ${cardTotal > 0 ? `<span style="color:var(--primary);">💳 카드 <strong>${formatMoney(cardTotal)}원</strong></span>` : ''}
+        ${cashTotal > 0 ? `<span style="color:var(--success);">🏦 현금·이체 <strong>${formatMoney(cashTotal)}원</strong></span>` : ''}
+      </div>` : '';
+
+    const paidDate = b.paidAt ? new Date(b.paidAt).toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' }).replace(/\. /g,'.').replace('.','') : '-';
+
+    const itemRows = (b.groups || []).map(g => `
+      <div style="display:flex; justify-content:space-between; align-items:center;
+                  padding:6px 0; border-bottom:1px solid var(--gray-100); font-size:13px;">
+        <span style="color:var(--gray-700);">${escHtml(g.item)}</span>
+        <span>
+          <strong style="color:var(--gray-800);">${formatMoney(g.amount)}원</strong>
+          <span style="color:var(--gray-400); font-size:11px; margin-left:4px;">(${g.count}건)</span>
+        </span>
+      </div>`).join('') || `<div style="color:var(--gray-400); font-size:13px;">항목 정보 없음</div>`;
+
+    return `
+      <div class="billing-item" style="max-width:50%; margin:0 auto 16px auto; opacity:0.92;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <span class="billing-title">📅 청구일: ${b.date}</span>
+          <span class="billing-status status-paid">✅ 입금완료</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
+          <span style="font-size:12px; color:var(--gray-500);">총금액</span>
+          <span class="billing-amount">${formatMoney(b.amount)}</span><span style="font-size:14px; font-weight:500; color:var(--gray-500);">원</span>
+        </div>
+        <div style="font-size:12px; color:var(--gray-400); margin-bottom:8px;">입금확인일: ${paidDate}</div>
+        ${summaryHtml}
+        <div style="margin-top:8px;">${itemRows}</div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = summaryBar + items;
 }
 // ── 검색 ──
 function renderSearch() {
