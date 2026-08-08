@@ -877,7 +877,7 @@
 // ══════════════════════════════════════════════
 //  앱 버전
 // ══════════════════════════════════════════════
-const APP_VERSION = '1.0.4';
+const APP_VERSION = '1.0.5';
 
 // ══════════════════════════════════════════════
 //  앱 상태
@@ -1620,6 +1620,10 @@ async function deleteRecord() {
   if (!id) return;
   if (!confirm('이 항목을 삭제할까요?')) return;
 
+  // 삭제된 ID를 기록하여 다른 PC 병합 시 재복원 방지
+  if (!appData._deletedIds) appData._deletedIds = [];
+  if (!appData._deletedIds.includes(id)) appData._deletedIds.push(id);
+
   appData.records = appData.records.filter(r => r.id !== id);
   await persistData();
   closeModal('modal-record');
@@ -1904,6 +1908,27 @@ async function persistData() {
   appData.lastUpdated = new Date().toISOString();
   showLoading(true);
   try {
+    // 저장 전 서버 최신 데이터와 병합 (다른 PC에서 추가된 레코드 누락 방지)
+    const serverData = await db.get();
+    if (serverData) {
+      const localIds    = new Set(appData.records.map(r => r.id));
+      const deletedIds  = new Set(appData._deletedIds || []);
+      const newFromServer = (serverData.records || []).filter(r =>
+        !localIds.has(r.id) && !deletedIds.has(r.id)
+      );
+      if (newFromServer.length > 0) {
+        appData.records = [...appData.records, ...newFromServer];
+      }
+
+      const localBillingIds   = new Set(appData.billings.map(b => b.id));
+      const newBillingsFromServer = (serverData.billings || []).filter(b =>
+        !localBillingIds.has(b.id)
+      );
+      if (newBillingsFromServer.length > 0) {
+        appData.billings = [...appData.billings, ...newBillingsFromServer];
+      }
+    }
+
     await db.save(appData);
   } catch (err) {
     showToast('저장 실패: ' + err.message);
@@ -2122,6 +2147,41 @@ async function migrateAllHistoricalPaid() {
   showToast(`✅ 과거 내역 ${unbilled.length}건 청구 및 입금 완료 처리되었습니다.`);
   renderAll();
 }
+
+// ══════════════════════════════════════════════
+//  탭 포커스 시 자동 동기화 (다른 PC 변경사항 반영)
+// ══════════════════════════════════════════════
+async function syncFromServer() {
+  if (!db.connected) return;
+  try {
+    const serverData = await db.get();
+    if (!serverData) return;
+
+    const localIds   = new Set(appData.records.map(r => r.id));
+    const deletedIds = new Set(appData._deletedIds || []);
+    const newFromServer = (serverData.records || []).filter(r =>
+      !localIds.has(r.id) && !deletedIds.has(r.id)
+    );
+
+    const localBillingIds       = new Set(appData.billings.map(b => b.id));
+    const newBillingsFromServer = (serverData.billings || []).filter(b =>
+      !localBillingIds.has(b.id)
+    );
+
+    if (newFromServer.length > 0 || newBillingsFromServer.length > 0) {
+      appData.records  = [...appData.records,  ...newFromServer];
+      appData.billings = [...appData.billings, ...newBillingsFromServer];
+      renderAll();
+      showToast(`☁️ ${newFromServer.length}건의 새 데이터가 동기화되었습니다.`);
+    }
+  } catch {
+    // 자동 동기화 실패는 조용히 처리 (사용자 작업 방해 방지)
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') syncFromServer();
+});
 
 // ══════════════════════════════════════════════
 //  앱 시작
