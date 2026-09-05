@@ -241,6 +241,8 @@
     .btn-outline:hover { background: var(--gray-50); }
     .btn-danger { background: var(--danger); color: white; }
     .btn-danger:hover { background: #b91c1c; }
+    .btn-warning { background: var(--warning); color: white; }
+    .btn-warning:hover { background: #b45309; }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
     .btn-full { width: 100%; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -877,7 +879,7 @@
 // ══════════════════════════════════════════════
 //  앱 버전
 // ══════════════════════════════════════════════
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 
 // ══════════════════════════════════════════════
 //  앱 상태
@@ -1448,6 +1450,7 @@ function renderHistory() {
         </div>
         <div style="display:flex; gap:8px; margin-left:28px;">
           <button class="btn btn-outline btn-sm flex-1" onclick="toggleHistoryDetail('${b.id}', this)">▼ 세부내역 보기</button>
+          <button class="btn btn-warning btn-sm" onclick="revertPaid('${b.id}')" title="미입금으로 되돌리기">↩️ 미입금</button>
           <button class="btn btn-danger btn-sm" onclick="deleteHistoryItem('${b.id}')">🗑️</button>
         </div>
         <div id="history-detail-${b.id}" style="display:none; margin-top:10px; margin-left:28px;">
@@ -1496,6 +1499,18 @@ async function deleteHistoryItem(billingId) {
   if (billing) billing.hidden = true;
   await persistData();
   showToast('삭제되었습니다.');
+  renderHistory();
+}
+
+async function revertPaid(billingId) {
+  const billing = appData.billings.find(b => b.id === billingId);
+  if (!billing) return;
+  if (!confirm('입금 완료를 취소하고 미입금 상태로 되돌릴까요?\n해당 청구가 미청구 탭으로 이동됩니다.')) return;
+  billing.isPaid = false;
+  delete billing.paidAt;
+  await persistData();
+  showToast('↩️ 미입금 상태로 되돌렸습니다.');
+  renderPending();
   renderHistory();
 }
 // ── 검색 ──
