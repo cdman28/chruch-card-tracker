@@ -879,7 +879,7 @@
 // ══════════════════════════════════════════════
 //  앱 버전
 // ══════════════════════════════════════════════
-const APP_VERSION = '1.0.6';
+const APP_VERSION = '1.0.7';
 
 // ══════════════════════════════════════════════
 //  앱 상태
@@ -1092,7 +1092,10 @@ function renderUnbilled() {
 
   if (unbilled.length === 0) {
     document.getElementById('unbilled-list').innerHTML =
-      `<div class="empty-state"><div class="icon">✅</div><p>미청구 내역이 없습니다</p></div>`;
+      `<div class="empty-state"><div class="icon">✅</div><p>미청구 내역이 없습니다</p></div>
+      <div style="margin-top: 16px; margin-bottom: 20px;">
+        <button class="btn btn-primary btn-full" onclick="openRecordModal()" title="지출 추가">＋ 개별 입력</button>
+      </div>`;
     return;
   }
 
