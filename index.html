@@ -426,8 +426,12 @@
       margin-top: 3px;
       display: none;
     }
+    .merchant-dropdown.dropup {
+      top: auto; bottom: 100%;
+      margin-top: 0; margin-bottom: 3px;
+    }
     .merchant-dropdown-item {
-      padding: 10px 13px;
+      padding: 7px 12px;
       font-size: 14px;
       cursor: pointer;
       color: var(--gray-800);
@@ -2070,6 +2074,11 @@ function initMerchantDropdown() {
       });
       dropdown.appendChild(div);
     });
+    // 화면 하단 여백이 부족하면 위로 펼침
+    const rect = input.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const estHeight = filtered.length * 38;
+    dropdown.classList.toggle('dropup', spaceBelow < estHeight + 8);
     dropdown.style.display = 'block';
   }
 
