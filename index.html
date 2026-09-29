@@ -415,6 +415,27 @@
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .form-hint { font-size: 11px; color: var(--gray-400); margin-top: 3px; }
 
+    /* ─── 상호 커스텀 드롭다운 ─── */
+    .merchant-form-group { position: relative; }
+    .merchant-dropdown {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 300;
+      background: white;
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.13);
+      margin-top: 3px;
+      display: none;
+    }
+    .merchant-dropdown-item {
+      padding: 10px 13px;
+      font-size: 14px;
+      cursor: pointer;
+      color: var(--gray-800);
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .merchant-dropdown-item:last-child { border-bottom: none; }
+    .merchant-dropdown-item:hover { background: var(--primary-light); color: var(--primary-dark); }
+
     /* ─── 모달 ─── */
     .modal-overlay {
       display: none;
@@ -837,10 +858,11 @@
       </div>
 
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group merchant-form-group">
           <label class="form-label">상호</label>
-          <input type="text" class="form-control" id="rec-merchant" placeholder="예: 쿠팡, 배민1, 네이버" list="merchant-list" />
+          <input type="text" class="form-control" id="rec-merchant" placeholder="예: 쿠팡, 배민1, 네이버" autocomplete="off" />
           <datalist id="merchant-list"></datalist>
+          <div id="merchant-dropdown" class="merchant-dropdown"></div>
         </div>
         <div class="form-group">
           <label class="form-label">사용 카드</label>
@@ -879,7 +901,7 @@
 // ══════════════════════════════════════════════
 //  앱 버전
 // ══════════════════════════════════════════════
-const APP_VERSION = '1.0.7';
+const APP_VERSION = '1.0.8';
 
 // ══════════════════════════════════════════════
 //  앱 상태
@@ -888,6 +910,7 @@ const db = new GistDB({ appKey: 'church_card', filename: 'church-data.json' });
 
 let appData = { records: [], billings: [], lastUpdated: null };
 let currentTab = 'unbilled';
+let merchantSuggestions = [];
 
 // 자주 쓰는 항목 (빠른 입력용)
 const FAVORITE_ITEMS = [
@@ -943,6 +966,7 @@ function showApp() {
   initYearFilter();
   initCardFilter();
   buildMerchantDatalist();
+  initMerchantDropdown();
   renderAll();
   setLastModified();
   runMigrations(); // 1회성 마이그레이션 순차 실행
@@ -2021,18 +2045,51 @@ function initCardFilter() {
     cards.map(c => `<option value="${c}">${c}</option>`).join('');
 }
 
+// 상호 커스텀 드롭다운 초기화 (최초 1회)
+function initMerchantDropdown() {
+  const input = document.getElementById('rec-merchant');
+  const dropdown = document.getElementById('merchant-dropdown');
+  if (!input || !dropdown || input.dataset.dropdownInited) return;
+  input.dataset.dropdownInited = '1';
+
+  function showDropdown(filter) {
+    const q = (filter || '').toLowerCase();
+    const filtered = q
+      ? merchantSuggestions.filter(m => m.toLowerCase().includes(q))
+      : merchantSuggestions;
+    if (!filtered.length) { dropdown.style.display = 'none'; return; }
+    dropdown.innerHTML = '';
+    filtered.forEach(m => {
+      const div = document.createElement('div');
+      div.className = 'merchant-dropdown-item';
+      div.textContent = m;
+      div.addEventListener('mousedown', e => {
+        e.preventDefault(); // blur 이벤트 선행 방지
+        input.value = m;
+        dropdown.style.display = 'none';
+      });
+      dropdown.appendChild(div);
+    });
+    dropdown.style.display = 'block';
+  }
+
+  input.addEventListener('focus', () => showDropdown(input.value));
+  input.addEventListener('input', () => showDropdown(input.value));
+  input.addEventListener('blur',  () => { dropdown.style.display = 'none'; });
+}
+
 // 상호 데이터리스트 빌드 (사용 빈도 상위 10개)
 function buildMerchantDatalist() {
   const freq = {};
   appData.records.forEach(r => {
     if (r.merchant) freq[r.merchant] = (freq[r.merchant] || 0) + 1;
   });
-  const top10 = Object.entries(freq)
+  merchantSuggestions = Object.entries(freq)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
     .map(([m]) => m);
   document.getElementById('merchant-list').innerHTML =
-    top10.map(m => `<option value="${m}">`).join('');
+    merchantSuggestions.map(m => `<option value="${m}">`).join('');
 }
 
 // 즐겨찾기 빌드
